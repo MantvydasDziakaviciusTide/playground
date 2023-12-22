@@ -1,0 +1,55 @@
+name: Deploy Workflow
+
+env:
+  DOCKER_USER: ${{ secrets.DOCKER_USER }}
+  DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+
+on:
+  pull_request:
+    branches: [master]
+
+jobs:
+  generate_template:
+    name: Generate all templates
+    runs-on: ubuntu-latest
+    container:
+      image: python:3.10-slim
+    steps:
+      - name: Github-checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Execute generate-all-templates.sh
+        run: bin/generate-all-templates.sh
+      - name: Archive and upload Unit Tests results
+        uses: actions/upload-artifact@v3
+        with:
+          name: template_results
+          path: output/**
+
+  build_template:
+    name: Build template
+    runs-on: ubuntu-latest
+    needs:
+      - generate_template
+    permissions:
+      id-token: write
+      contents: write
+    container:
+      image: 824676761403.dkr.ecr.eu-west-2.amazonaws.com/tide-java-17:latest
+      credentials:
+        username: AWS
+        password: ${{ secrets.ECR_PASSWORD }}
+
+    steps:
+      - name: Github-checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Download build template artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: template_results
+          path: build/
+      - name: Execute build-all-java-templates.sh
+        run: bin/build-all-java-templates.sh

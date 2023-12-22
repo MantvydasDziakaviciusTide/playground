@@ -1,0 +1,43 @@
+#!/usr/bin/env python3
+import os
+import subprocess
+import sys
+from common.utils import apply_template
+
+
+def usage():
+    print("usage: generate <template-name>")
+
+
+def load_template(template_name):
+    template_file = "./java/templates/%s/run_template.py" % template_name
+    if os.path.isfile(template_file):
+        # Run the template from the current directory so that it has easy access to the utils module.
+        cwd = os.getcwd()
+        subprocess.call("python3 " + template_file, shell=True, env={"PYTHONPATH": cwd})
+    else:
+        print(
+            "Don't know how to generate '%s': %s does not exist."
+            % (template_name, template_file)
+        )
+
+
+def main():
+    def form_sub():
+        substitutions = dict()
+        substitutions["@@service-name@@"] = sys.argv[2]
+        substitutions["@@package-name@@"] = sys.argv[3]
+        substitutions["@@db-name@@"] = sys.argv[2].replace("-", "_")
+        return substitutions
+
+    if sys.argv[1]:
+        type = sys.argv[1]
+        template_file = f"./{type}/templates/rest-service/run_template.py"
+    else:
+        raise Exception("undefined service type")
+    apply_template(template_file, form_sub)
+
+
+if __name__ == "__main__":
+    # python generate <service-type> <service-name> <package-name>
+    main()

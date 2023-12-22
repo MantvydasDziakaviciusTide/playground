@@ -1,0 +1,61 @@
+name: Initialise the project from template
+
+on:
+  push:
+    paths:
+      - template-type.txt
+
+jobs:
+  initialise:
+    # this workflow will run only in the repo built from the template 
+    # it will run only on the first commit (github-iac TF build will create multiple commits)
+    if: ${{ github.repository	!= 'tideplatform/backend-templates' && github.run_number == 1 }}
+    runs-on: ubuntu-latest
+    env:
+      REPO_NAME: ${{ github.event.repository.name }}
+      SUPPORTED_TEMPLATE_TYPES: ("java")
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ github.head_ref }}
+                
+      - name: Calculate template variables
+        run: |
+          echo "PACKAGE_NAME=$(echo '${{ env.REPO_NAME }}' | tr - .)" >> $GITHUB_ENV
+          echo "REPO_TYPE=$(cat "template-type.txt")" >> $GITHUB_ENV
+        shell: bash
+
+      - name: Generate from template
+        run: |
+          ./generate ${{ env.REPO_TYPE }} ${{ env.REPO_NAME }} ${{ env.PACKAGE_NAME }}
+        shell: bash
+        if: ${{ contains(env.SUPPORTED_TEMPLATE_TYPES, env.REPO_TYPE) }}
+
+      # the following will clear all template files, this includes this workflow definition
+      # catalog-info.yaml and datadog-service-def.yaml are managed by github-iac
+      - name: Clear template generator
+        run: |
+          # remove all files that belong to the backend-templates with a few exceptions
+          find . -maxdepth 1 ! -name 'output' ! -name '.git' ! -name '.github' \
+          ! -name 'catalog-info.yaml' ! -name 'datadog-service-def.yaml' ! -name '.snyk' \
+          -exec rm -rf {} \; 2> /dev/null
+          # remove backend-templates workflows
+          rm .github/workflows/initialise.yaml
+          rm .github/workflows/deploy.yml
+        shell: bash
+
+      - name: Move template to root
+        run: |
+          shopt -s dotglob
+          mv output/${{ env.REPO_NAME }}/* .
+        shell: bash
+        if: ${{ contains(env.SUPPORTED_TEMPLATE_TYPES, env.REPO_TYPE) }}
+
+      - name: Push the changes
+        run: |
+          git config user.name devex-bot
+          git config user.email devex@tide.co
+          git add .
+          git commit -m "✅ Repository initialised."
+          git pull --rebase
+          git push

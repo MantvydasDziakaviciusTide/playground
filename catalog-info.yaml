@@ -1,0 +1,23 @@
+---
+
+# NB: The contents of this file are managed by github-iac and changes will
+# likely be overwritten
+#
+# https://github.com/tideplatform/github-iac
+
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: backend-templates
+  description: |
+    None
+  links: [{"title":"Repository","url":"https://github.com/tideplatform/backend-templates"},{"title":"Datadog logs","url":"https://app.datadoghq.eu/logs?query=service%3Abackend-templates"}]
+  annotations:
+    github.com/project-slug: tideplatform/backend-templates
+    backstage.io/techdocs-ref: dir:.
+    sonarqube.org/project-key: tideplatform_backend-templates
+    backstage.io/kubernetes-label-selector: 'app.kubernetes.io/name=backend-templates'
+spec:
+  type: service
+  lifecycle: production
+  owner: backend

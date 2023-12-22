@@ -1,0 +1,202 @@
+plugins {
+    id 'org.springframework.boot' version '2.7.11'
+    id 'org.sonarqube' version '3.3'
+    id 'jacoco'
+    id 'nu.studer.jooq' version '7.1'
+}
+
+apply plugin: 'java'
+apply plugin: 'idea'
+apply plugin: 'io.spring.dependency-management'
+
+group = 'co.tide'
+version = '1.0-SNAPSHOT'
+
+sourceCompatibility = 17
+targetCompatibility = 17
+
+repositories {
+    mavenCentral()
+    
+    maven {
+    url 'https://common-uk-main-824676761403.d.codeartifact.eu-west-2.amazonaws.com/maven/gradle/'
+    credentials {
+        username "aws"
+        password System.env.CODEARTIFACT_AUTH_TOKEN
+    }
+}
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.cloud:spring-cloud-dependencies:2021.0.1"
+    }
+}
+
+dependencies {
+    // Database driver for jOOQ
+    jooqGenerator "org.postgresql:postgresql"
+
+    // Lombok
+    compileOnly "org.projectlombok:lombok"
+    annotationProcessor "org.projectlombok:lombok"
+
+    // Spring dependencies
+    implementation "org.springframework.boot:spring-boot-starter-web"
+    implementation "org.springframework.boot:spring-boot-starter-actuator"
+    implementation "org.springframework.boot:spring-boot-starter-hateoas"
+    runtimeOnly "org.springframework.boot:spring-boot-starter-validation"
+
+    // Database dependencies
+    implementation "org.springframework.boot:spring-boot-starter-jdbc"
+    implementation "com.zaxxer:HikariCP"
+    implementation "org.liquibase:liquibase-core"
+    implementation "org.jooq:jooq"
+    runtimeOnly "org.postgresql:postgresql"
+
+    // Tide dependencies
+    implementation "co.tide:tide-logging-general:2.0.8"
+    implementation "co.tide:tide-security-jwt:6.2.0"
+    implementation "co.tide:v4-api:1.6.1"
+    implementation "co.tide:v4-api-spring:2.0.2"
+
+    // ApiDocs dependencies
+    implementation "org.springdoc:springdoc-openapi-ui:1.6.15"
+    implementation "org.springdoc:springdoc-openapi-security:1.6.15"
+
+    // Test
+    testImplementation "org.springframework.boot:spring-boot-starter-test"
+    testImplementation "org.junit.jupiter:junit-jupiter-api"
+    testRuntimeOnly "org.junit.jupiter:junit-jupiter-engine"
+    testImplementation "org.mockito:mockito-junit-jupiter"
+    testImplementation "co.tide:tide-test-spring-annotations-general:1.1.0"
+    testImplementation "org.springframework.boot:spring-boot-starter-aop"
+    testImplementation 'org.testcontainers:testcontainers:1.17.6'
+    testImplementation "org.testcontainers:postgresql:1.17.6"
+}
+
+jacocoTestReport {
+    executionData.setFrom(fileTree("$buildDir/jacoco/").include("**.exec"))
+    classDirectories.setFrom(files(project.sourceSets.main.output))
+
+    reports {
+        html.required = true
+        xml.required = true
+    }
+
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: 'co/tide/@@package-name@@/db/jooq/**')
+        }))
+    }
+}
+
+sonarqube {
+    properties {
+        property "sonar.coverage.jacoco.xmlReportPaths", "$buildDir/reports/jacoco/test/jacocoTestReport.xml"
+        property "sonar.exclusions", "src/generated-db-entities/**"
+    }
+}
+
+task unitTest(type: Test) {
+    useJUnitPlatform {
+        include '**/*UTest.class'
+    }
+    failFast = true
+}
+
+task integrationTest(type: Test) {
+    useJUnitPlatform {
+        include '**/*ITest.class'
+    }
+    failFast = true
+}
+
+task apiTest(type: Test) {
+    useJUnitPlatform {
+        include '**/*ApiTest.class'
+    }
+    failFast = true
+}
+
+bootRun {
+    // The profile can be passed as ./gradlew clean bootRun -Dspring.profiles.active=dev
+    systemProperties['spring.profiles.active']=project.gradle.startParameter.systemPropertiesArgs['spring.profiles.active']
+}
+
+task jooqGen {
+    dependsOn += 'generateJooq'
+}
+
+
+
+jooq {
+    configurations{
+        main {
+            // We don't want jOOQ to run on every compile.
+            generateSchemaSourceOnCompilation = false
+            generationTool{
+                jdbc {
+                    driver = 'org.postgresql.Driver'
+                    url = 'jdbc:postgresql://127.0.0.1:5432/@@db-name@@'
+                    user = 'postgres'
+                    password = ''
+                    properties {
+                        property {
+                            // No need for SSL on localhost when generating sources, so it's ok to suppress the warnings
+                            key = 'useSSL'
+                            value = 'false'
+                        }
+                    }
+                }
+
+                generator {
+                    name = 'org.jooq.codegen.DefaultGenerator'
+
+                    database {
+                        name = 'org.jooq.meta.postgres.PostgresDatabase'
+                        inputSchema = 'public'
+                        outputSchemaToDefault = true
+                        excludes = 'DATABASECHANGELOG|DATABASECHANGELOGLOCK'
+                    }
+
+                    generate {
+                        relations = false
+                        deprecated = false
+                        records = true
+                        pojos = true
+                        daos = true
+                        springAnnotations = true
+                        javaTimeTypes = true
+                        fluentSetters = true
+                        pojosEqualsAndHashCode = true
+                        constructorPropertiesAnnotation = true
+                        generatedAnnotation = true
+                    }
+
+                    target {
+                        packageName = 'co.tide.@@package-name@@.db.jooq'
+                        directory = 'src/generated-db-entities/java/'
+                    }
+                }
+            }
+        }
+    }
+}
+
+allprojects { project ->
+    dependencyLocking {
+        lockAllConfigurations()
+    }
+    tasks.register('resolveAndLockAll') {
+        doFirst {
+            assert gradle.startParameter.writeDependencyLocks
+        }
+        doLast {
+            configurations.findAll {
+                // Add any custom filtering on the configurations to be resolved
+                it.canBeResolved
+            }.each { it.resolve() }
+        }
+    }
+}

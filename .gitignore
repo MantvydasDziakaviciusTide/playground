@@ -1,0 +1,18 @@
+/output/
+
+### Gradle ###
+.gradle/
+
+### Python ###
+__pycache__/
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+/out/
+
+# Visual Studio Code
+.vscode/
+**/.project

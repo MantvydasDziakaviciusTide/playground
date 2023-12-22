@@ -1,0 +1,13 @@
+# Database container for running tests locally.
+version: '2'
+
+services:
+  @@service-name@@:
+    container_name: @@service-name@@-db
+    image: postgres:11.6
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: @@db-name@@
+      POSTGRES_HOST_AUTH_METHOD: trust

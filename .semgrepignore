@@ -1,0 +1,46 @@
+# Example to remove a file from being tracked for dependency review
+
+# Ignoring a single dependency:
+
+# You can ignore a single dependency by adding the comment in the repo using:
+
+#  					// nosemgrep: rule-id
+
+# over the name of dependecy
+
+# Example:
+# In the build.gradle file
+#
+# 					  plugins {
+#    					id 'co.tide.authorisation.java-library-conventions'
+#						}
+#
+#					  dependencies {
+# 						--------------------------------------------------------------------------------
+#						// nosemgrep: ssc-37ae9e0a-cbf0-4910-8f73-04f2275899a6
+# 						--------------------------------------------------------------------------------
+#    					implementation 'co.tide:message-publisher:3.0.0'
+#    					implementation 'com.fasterxml.jackson.core:jackson-databind:2.14.0'
+#    					implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-cbor:2.11.4'
+#
+#    					implementation 'org.springframework.boot:spring-boot-starter-web:2.7.11'
+#    					implementation 'org.springframework.boot:spring-boot-starter-aop:2.7.11'
+#    					implementation 'org.springframework:spring-jms:5.3.22'
+#
+#    					implementation 'javax.validation:validation-api:2.0.1.Final'
+#    					implementation 'io.swagger.core.v3:swagger-annotations:2.2.2'
+#    					implementation 'co.tide:v4-api:1.6.1'
+#
+#					    testImplementation 'co.tide:v4-api-spring:2.1.0'
+#    					testImplementation 'org.skyscreamer:jsonassert:1.5.1'
+#    					testImplementation 'org.apache.commons:commons-lang3:3.12.0'
+#    					testImplementation 'org.hamcrest:hamcrest-library:2.2'
+#    					testImplementation 'org.assertj:assertj-core:3.23.1'
+#					}
+#
+#					configurations {
+#    					testArtifacts.extendsFrom testRuntime
+#					}
+#
+# https://semgrep.dev/docs/ignoring-files-folders-code/
+# https://semgrep.dev/docs/troubleshooting/semgrep/
